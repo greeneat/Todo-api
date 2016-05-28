@@ -4,7 +4,7 @@ module.exports = function(db){
             var token = req.get('Auth');
             
             db.user.findByToken(token).then(function (user){
-               res.user = user;
+               req.user = user;
                next();
             },function (e){
                res.status(401).send(); 
