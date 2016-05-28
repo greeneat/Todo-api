@@ -1,6 +1,8 @@
 
 var crypto = require('crypto');
 var _ = require('underscore');
+var cryptojs = require('crypto-js');
+var jwt = require('jsonwebtoken');
 
 module.exports = function(sequelize,Datatypes){
     var user = sequelize.define('user',{
@@ -54,8 +56,11 @@ module.exports = function(sequelize,Datatypes){
                             email: body.email
                         }
                     }).then(function (user){
+                            if(!user){
+                                return reject();
+                            }
                             var login_hash = crypto.createHmac('sha256', user.salt).update(body.password).digest('hex');
-                            if(!user || user.password_hash !== login_hash){
+                            if(user.password_hash !== login_hash){
                                 return reject();
                             }
                             resolve(user);
@@ -69,6 +74,23 @@ module.exports = function(sequelize,Datatypes){
             toPublicJSON: function (){
                 var json = this.toJSON();
                 return _.pick(json,'id','email','createdAt','updatedAt');
+            },
+            generateToken: function(type){
+                if(!_.isString(type)){
+                    return undefined;
+                }
+                
+                try{
+                    var stringData = JSON.stringify({id: this.get('id'),type: type});
+                    var encryptedData = cryptojs.AES.encrypt(stringData,'abc123!@#!').toString();
+                    var token = jwt.sign({
+                       token: encryptedData 
+                    },'qwerty@98');
+                    
+                    return token;
+                }catch(e){
+                    return undefined;
+                }
             }
         }
     });
