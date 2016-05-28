@@ -1,5 +1,6 @@
 var express = require('express');
 var bodyParser = require('body-parser');
+var crypto = require('crypto');
 var _ = require('underscore');
 var db = require('./db.js');
 
@@ -112,7 +113,7 @@ app.post('/users',function(req,res){
    var body = _.pick(req.body,'email','password');
    
    db.user.create(body).then(function(user){
-       res.json(user.toJSON());
+       res.json(user.toPublicJSON());
    },function(e){
        res.status('400').json(e); 
    }); 
@@ -120,9 +121,24 @@ app.post('/users',function(req,res){
 
 app.post('/users/login', function (req,res){
    var body = _.pick(req.body,'email','password');
+   
    if(typeof body.email !== 'string' || typeof body.password !== 'string'){
        return res.status(400).send();
    } 
+   
+   db.user.findOne({
+      where: {
+          email: body.email
+      }
+   }).then(function (user){
+        var login_hash = crypto.createHmac('sha256', user.salt).update(body.password).digest('hex');
+        if(!user || user.password_hash !== login_hash){
+            return res.status(401).send();
+        }
+        res.json(user.toPublicJSON());
+   },function(e){
+       res.status(500).send();
+   });
 });
 
 db.sequelize.sync().then(function(){
